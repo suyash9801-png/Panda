@@ -1,40 +1,156 @@
-const STORAGE_KEY = 'studyflow-v1';
-const today = new Date().toISOString().slice(0, 10);
-const seed = { subjects: [
-  { id: 'maths', name: 'Mathematics', color: 'purple', chapters: [{ title: 'Real Numbers', done: true }, { title: 'Polynomials', done: true }, { title: 'Linear Equations', done: false }] },
-  { id: 'science', name: 'Science', color: 'green', chapters: [{ title: 'Chemical Reactions', done: true }, { title: 'Life Processes', done: false }, { title: 'Light', done: false }] },
-  { id: 'english', name: 'English', color: 'coral', chapters: [{ title: 'First Flight', done: true }, { title: 'Footprints Without Feet', done: false }] }
-], sessions: [{ id: 's1', subjectId: 'maths', minutes: 65, date: today, note: 'Practised numericals' }, { id: 's2', subjectId: 'science', minutes: 45, date: today, note: 'Read chapter notes' }], tests: [{ id: 't1', subjectId: 'maths', title: 'Algebra quiz', score: 18, total: 20 }] };
-let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || seed;
-const $ = (selector) => document.querySelector(selector);
-const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-const minutesLabel = (minutes) => `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`;
-const subject = (id) => state.subjects.find((item) => item.id === id);
+const canvas = document.querySelector('#drawing-canvas');
+const ctx = canvas.getContext('2d');
+const canvasWrap = document.querySelector('.canvas-wrap');
+const hint = document.querySelector('#canvas-hint');
+const resultCard = document.querySelector('#result-card');
+const statusText = document.querySelector('#status-text');
+const instruction = document.querySelector('#instruction');
+const scoreValue = document.querySelector('#score-value');
+const scoreProgress = document.querySelector('#score-progress');
+const centerValue = document.querySelector('#center-value');
+const radiusValue = document.querySelector('#radius-value');
+const resultMessage = document.querySelector('#result-message');
+const resultDetail = document.querySelector('#result-detail');
+const pointCount = document.querySelector('#point-count');
+const bestScore = document.querySelector('#best-score');
 
-function renderOptions() { const options = state.subjects.map((item) => `<option value="${item.id}">${item.name}</option>`).join(''); document.querySelectorAll('.subject-options').forEach((el) => { el.innerHTML = options || '<option value="">Add a subject first</option>'; el.disabled = !state.subjects.length; }); }
-function renderDashboard() {
-  const chapters = state.subjects.flatMap((item) => item.chapters); const done = chapters.filter((item) => item.done).length;
-  const totalMinutes = state.sessions.reduce((sum, item) => sum + Number(item.minutes), 0); const dailyMinutes = state.sessions.filter((item) => item.date === today).reduce((sum, item) => sum + Number(item.minutes), 0);
-  const avg = state.tests.length ? Math.round(state.tests.reduce((sum, item) => sum + (item.score / item.total) * 100, 0) / state.tests.length) : null;
-  $('#completed-stat').innerHTML = `${done}<span>/${chapters.length}</span>`; $('#completed-copy').textContent = chapters.length ? `${Math.round(done / chapters.length * 100)}% syllabus complete` : 'Start your first chapter';
-  $('#study-stat').innerHTML = `${Math.floor(totalMinutes / 60)}h <span>${totalMinutes % 60}m</span>`; $('#study-copy').textContent = state.sessions.length ? `${state.sessions.length} focus sessions logged` : 'No sessions logged yet';
-  $('#marks-stat').textContent = avg === null ? '—' : `${avg}%`; $('#marks-copy').textContent = avg === null ? 'Add a test result' : `${state.tests.length} assessment${state.tests.length === 1 ? '' : 's'} recorded`;
-  $('#goal-side').textContent = minutesLabel(dailyMinutes); $('#goal-side-bar').style.width = `${Math.min(dailyMinutes / 120 * 100, 100)}%`;
-  const week = Array.from({ length: 7 }, (_, index) => { const d = new Date(); d.setDate(d.getDate() - 6 + index); const date = d.toISOString().slice(0, 10); return state.sessions.filter((item) => item.date === date).reduce((sum, item) => sum + Number(item.minutes), 0); });
-  const max = Math.max(...week, 60); $('#weekly-chart').innerHTML = week.map((value) => `<div class="bar-wrap"><div class="bar" title="${minutesLabel(value)}" style="height:${Math.max(value / max * 100, 3)}%"></div></div>`).join('');
-  const next = state.subjects.flatMap((item) => item.chapters.filter((chapter) => !chapter.done).map((chapter) => ({ ...chapter, subject: item }))).slice(0, 3);
-  $('#up-next').innerHTML = next.length ? next.map((chapter) => `<div class="next-item"><i class="next-dot ${chapter.subject.color}"></i><div><strong>${chapter.title}</strong><span>${chapter.subject.name}</span></div><button class="text-button chapter-quick" data-subject="${chapter.subject.id}" data-chapter="${chapter.title}">Done</button></div>`).join('') : '<p class="empty-state">Amazing — every chapter is complete!</p>';
+let points = [];
+let drawing = false;
+let activePointer = null;
+let fittedCircle = null;
+let best = Number(sessionStorage.getItem('circle-craft-best') || 0);
+bestScore.textContent = best ? `${best}%` : '—';
+
+function resizeCanvas() {
+  const rect = canvasWrap.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.round(rect.width * ratio);
+  canvas.height = Math.round(rect.height * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  redraw();
 }
-function renderSubjects() { $('#subjects-list').innerHTML = state.subjects.length ? state.subjects.map((item) => { const done = item.chapters.filter((chapter) => chapter.done).length; const pct = item.chapters.length ? done / item.chapters.length * 100 : 0; return `<article class="subject-card ${item.color}"><div class="subject-top"><span class="subject-icon">${item.name.slice(0, 1)}</span><button class="subject-actions delete-subject" data-id="${item.id}" aria-label="Delete ${item.name}">×</button></div><h3>${item.name}</h3><p>${done} of ${item.chapters.length} chapters complete</p><div class="progress-track"><i style="width:${pct}%"></i></div><div class="subject-footer"><span>${Math.round(pct)}% complete</span><span>${item.chapters.length - done} remaining</span></div><ul class="chapter-list">${item.chapters.slice(0, 3).map((chapter, index) => `<li><input type="checkbox" class="chapter-check" data-subject="${item.id}" data-index="${index}" ${chapter.done ? 'checked' : ''}/><span>${chapter.title}</span></li>`).join('')}</ul><button class="chapter-add" data-chapter-for="${item.id}">+ Add chapter</button></article>`; }).join('') : '<p class="empty-state">No subjects yet. Add your first one to begin.</p>'; }
-function renderLogs() { $('#sessions-list').innerHTML = state.sessions.length ? [...state.sessions].reverse().slice(0, 6).map((item) => `<div class="log-item"><span class="log-icon">◷</span><div class="log-main"><strong>${subject(item.subjectId)?.name || 'Subject'}</strong><span>${item.note || 'Focused study'} · ${item.date}</span></div><span class="log-value">${minutesLabel(item.minutes)}</span><button class="delete-button delete-session" data-id="${item.id}" aria-label="Delete session">×</button></div>`).join('') : '<p class="empty-state">Your study sessions will appear here.</p>'; $('#tests-list').innerHTML = state.tests.length ? [...state.tests].reverse().map((item) => `<div class="log-item"><span class="log-icon">▤</span><div class="log-main"><strong>${item.title}</strong><span>${subject(item.subjectId)?.name || 'Subject'}</span></div><span class="log-value">${item.score}/${item.total} · ${Math.round(item.score / item.total * 100)}%</span><button class="delete-button delete-test" data-id="${item.id}" aria-label="Delete test">×</button></div>`).join('') : '<p class="empty-state">Your test results will appear here.</p>'; }
-function render() { renderOptions(); renderDashboard(); renderSubjects(); renderLogs(); save(); }
-function openModal(id) { if (!state.subjects.length && id !== 'subject-modal') { openModal('subject-modal'); return; } $(`#${id}`).showModal(); $('#modal-backdrop').classList.add('open'); }
-function closeModals() { document.querySelectorAll('dialog[open]').forEach((modal) => modal.close()); $('#modal-backdrop').classList.remove('open'); }
-document.addEventListener('click', (event) => { const open = event.target.closest('[data-open-modal]'); if (open) openModal(open.dataset.openModal); if (event.target.matches('.close-modal, #modal-backdrop')) closeModals(); const add = event.target.closest('[data-chapter-for]'); if (add) { $('#chapter-form [name="subjectId"]').value = add.dataset.chapterFor; openModal('chapter-modal'); } const check = event.target.closest('.chapter-check'); if (check) { subject(check.dataset.subject).chapters[check.dataset.index].done = check.checked; render(); } const quick = event.target.closest('.chapter-quick'); if (quick) { const chapter = subject(quick.dataset.subject).chapters.find((item) => item.title === quick.dataset.chapter); chapter.done = true; render(); } const delSub = event.target.closest('.delete-subject'); if (delSub) { state.subjects = state.subjects.filter((item) => item.id !== delSub.dataset.id); state.sessions = state.sessions.filter((item) => item.subjectId !== delSub.dataset.id); state.tests = state.tests.filter((item) => item.subjectId !== delSub.dataset.id); render(); } const delSession = event.target.closest('.delete-session'); if (delSession) { state.sessions = state.sessions.filter((item) => item.id !== delSession.dataset.id); render(); } const delTest = event.target.closest('.delete-test'); if (delTest) { state.tests = state.tests.filter((item) => item.id !== delTest.dataset.id); render(); } });
-$('#subject-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.subjects.push({ id: crypto.randomUUID(), name: data.get('name'), color: data.get('color'), chapters: [] }); event.target.reset(); closeModals(); render(); });
-$('#chapter-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); subject(data.get('subjectId')).chapters.push({ title: data.get('title'), done: false }); event.target.reset(); closeModals(); render(); });
-$('#session-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.sessions.push({ id: crypto.randomUUID(), subjectId: data.get('subjectId'), minutes: Number(data.get('minutes')), date: data.get('date'), note: data.get('note') }); event.target.reset(); closeModals(); render(); });
-$('#test-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.tests.push({ id: crypto.randomUUID(), subjectId: data.get('subjectId'), title: data.get('title'), score: Number(data.get('score')), total: Number(data.get('total')) }); event.target.reset(); closeModals(); render(); });
-function toggleTheme() { document.body.classList.toggle('dark'); localStorage.setItem('studyflow-theme', document.body.classList.contains('dark') ? 'dark' : 'light'); }
-$('#theme-toggle').addEventListener('click', toggleTheme); $('#theme-toggle-mobile').addEventListener('click', toggleTheme); $('#mobile-menu').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
-if (localStorage.getItem('studyflow-theme') === 'dark') document.body.classList.add('dark'); $('#session-form [name="date"]').value = today; render();
+
+function position(event) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+function strokePath(path, color = '#6557dd', width = 4) {
+  if (path.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(path[0].x, path[0].y);
+  path.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.linecap = 'round';
+  ctx.linejoin = 'round';
+  ctx.stroke();
+}
+
+function redraw(circle = fittedCircle) {
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  strokePath(points);
+  if (circle) {
+    ctx.beginPath();
+    ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = '#62d9bb';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([7, 7]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(circle.x, circle.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#62d9bb';
+    ctx.fill();
+  }
+}
+
+// Algebraic least-squares circle fit: x² + y² + Ax + By + C = 0.
+function fitCircle(path) {
+  const n = path.length;
+  let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, sxz = 0, syz = 0, sz = 0;
+  path.forEach(({ x, y }) => {
+    const z = x * x + y * y;
+    sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
+    sxz += x * z; syz += y * z; sz += z;
+  });
+  const matrix = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, n]];
+  const values = [-sxz, -syz, -sz];
+  for (let col = 0; col < 3; col += 1) {
+    let pivot = col;
+    for (let row = col + 1; row < 3; row += 1) if (Math.abs(matrix[row][col]) > Math.abs(matrix[pivot][col])) pivot = row;
+    if (Math.abs(matrix[pivot][col]) < 1e-8) return null;
+    [matrix[col], matrix[pivot]] = [matrix[pivot], matrix[col]];
+    [values[col], values[pivot]] = [values[pivot], values[col]];
+    for (let row = col + 1; row < 3; row += 1) { const factor = matrix[row][col] / matrix[col][col]; for (let k = col; k < 3; k += 1) matrix[row][k] -= factor * matrix[col][k]; values[row] -= factor * values[col]; }
+  }
+  const answer = [0, 0, 0];
+  for (let row = 2; row >= 0; row -= 1) answer[row] = (values[row] - matrix[row].slice(row + 1).reduce((sum, value, i) => sum + value * answer[row + i + 1], 0)) / matrix[row][row];
+  const [a, b, c] = answer;
+  const x = -a / 2, y = -b / 2, radiusSquared = x * x + y * y - c;
+  return radiusSquared > 0 ? { x, y, radius: Math.sqrt(radiusSquared) } : null;
+}
+
+function evaluate(path, circle) {
+  const distances = path.map((p) => Math.hypot(p.x - circle.x, p.y - circle.y));
+  const rms = Math.sqrt(distances.reduce((sum, d) => sum + (d - circle.radius) ** 2, 0) / distances.length);
+  const startEnd = Math.hypot(path[0].x - path.at(-1).x, path[0].y - path.at(-1).y);
+  const closure = Math.min(startEnd / Math.max(circle.radius, 1), 1);
+  const angles = path.map((p) => Math.atan2(p.y - circle.y, p.x - circle.x)).sort((a, b) => a - b);
+  const largestGap = angles.reduce((max, angle, i) => Math.max(max, (angles[(i + 1) % angles.length] + (i === angles.length - 1 ? Math.PI * 2 : 0)) - angle), 0);
+  const coveragePenalty = Math.max(0, largestGap / (Math.PI * 2) - .1);
+  const shapeError = rms / circle.radius;
+  return Math.round(Math.max(0, Math.min(100, 100 * (1 - shapeError * 3.3 - closure * .18 - coveragePenalty * .6))));
+}
+
+function reveal(circle, score) {
+  fittedCircle = circle;
+  redraw(circle);
+  const message = score >= 92 ? 'Excellent!' : score >= 80 ? 'Great!' : score >= 62 ? 'Good attempt!' : 'Try again!';
+  const detail = score >= 80 ? 'That was wonderfully round. Can you beat your best score?' : 'The mint line is your best-fit circle—compare it with your stroke.';
+  resultMessage.textContent = message;
+  resultDetail.textContent = detail;
+  scoreValue.textContent = `${score}%`;
+  centerValue.textContent = `(${Math.round(circle.x)}, ${Math.round(circle.y)})`;
+  radiusValue.textContent = `${Math.round(circle.radius)} px`;
+  resultCard.classList.remove('revealed');
+  void resultCard.offsetWidth;
+  resultCard.classList.add('revealed');
+  requestAnimationFrame(() => { scoreProgress.style.strokeDashoffset = String(320.44 * (1 - score / 100)); });
+  if (score > best) { best = score; sessionStorage.setItem('circle-craft-best', best); bestScore.textContent = `${best}%`; }
+}
+
+function finish() {
+  drawing = false;
+  canvas.releasePointerCapture?.(activePointer);
+  activePointer = null;
+  if (points.length < 16) { statusText.textContent = 'DRAW A LITTLE MORE'; instruction.textContent = 'Try a larger, smoother circle'; return; }
+  const circle = fitCircle(points);
+  if (!circle || circle.radius < 20) { statusText.textContent = 'TRY AGAIN'; return; }
+  const score = evaluate(points, circle);
+  statusText.textContent = 'RESULT READY';
+  instruction.textContent = 'Here’s your best-fit circle';
+  reveal(circle, score);
+}
+
+canvas.addEventListener('pointerdown', (event) => {
+  if (drawing) return;
+  event.preventDefault();
+  points = [position(event)]; fittedCircle = null; drawing = true; activePointer = event.pointerId;
+  canvas.setPointerCapture?.(activePointer); hint.classList.add('hidden');
+  resultCard.classList.remove('revealed'); scoreProgress.style.strokeDashoffset = '320.44';
+  statusText.textContent = 'KEEP GOING'; instruction.textContent = 'Draw a circle in one motion'; pointCount.textContent = '1 point'; redraw();
+});
+canvas.addEventListener('pointermove', (event) => {
+  if (!drawing || event.pointerId !== activePointer) return;
+  event.preventDefault();
+  const next = position(event); const last = points.at(-1);
+  if (Math.hypot(next.x - last.x, next.y - last.y) > 1.5) { points.push(next); strokePath([last, next]); pointCount.textContent = `${points.length} points`; }
+});
+canvas.addEventListener('pointerup', (event) => { if (drawing && event.pointerId === activePointer) finish(); });
+canvas.addEventListener('pointercancel', () => { drawing = false; activePointer = null; });
+canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+document.querySelector('#try-again').addEventListener('click', () => { points = []; fittedCircle = null; hint.classList.remove('hidden'); statusText.textContent = 'READY WHEN YOU ARE'; instruction.textContent = 'Draw a circle in one motion'; pointCount.textContent = '0 points'; scoreValue.textContent = '0%'; centerValue.textContent = '—'; radiusValue.textContent = '—'; resultMessage.textContent = 'Ready to draw?'; resultDetail.textContent = 'Complete a circle and we’ll find the best-fit centre and radius.'; resultCard.classList.remove('revealed'); scoreProgress.style.strokeDashoffset = '320.44'; redraw(); });
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();

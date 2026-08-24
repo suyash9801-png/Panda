@@ -3,70 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#5b5bd6" />
-    <title>StudyFlow — Your study dashboard</title>
+    <meta name="theme-color" content="#5b51d8" />
+    <title>Circle Accuracy Challenge</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <a class="brand" href="#dashboard"><span class="brand-mark">✦</span><span>Study<span>Flow</span></span></a>
-        <nav aria-label="Primary navigation">
-          <a class="nav-link active" href="#dashboard">⌂ <span>Dashboard</span></a>
-          <a class="nav-link" href="#subjects">▣ <span>Subjects</span></a>
-          <a class="nav-link" href="#sessions">◷ <span>Study log</span></a>
-          <a class="nav-link" href="#tests">▤ <span>Test marks</span></a>
-        </nav>
-        <div class="sidebar-card">
-          <p class="eyebrow">Daily goal</p>
-          <strong id="goal-side">0h 00m</strong><span>of 2 hours</span>
-          <div class="tiny-progress"><i id="goal-side-bar"></i></div>
+    <main class="game-shell">
+      <header class="site-header">
+        <a class="brand" href="/" aria-label="Circle Accuracy Challenge home"><span class="brand-mark">◯</span>Circle<span>Craft</span></a>
+        <div class="best-score" aria-label="Best score this session"><span class="trophy">★</span><span>BEST SCORE</span><strong id="best-score">—</strong></div>
+      </header>
+
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">PRECISION PLAYGROUND</p>
+        <h1 id="page-title">Circle Accuracy<br /><em>Challenge</em></h1>
+        <p class="subtitle">One smooth motion. One perfect circle. How close can you get?</p>
+      </section>
+
+      <section class="game-card" aria-label="Circle drawing game">
+        <div class="canvas-heading">
+          <div><p class="eyebrow">DRAWING PAD</p><h2 id="instruction">Draw a circle in one motion</h2></div>
+          <div class="drawing-status"><i></i><span id="status-text">READY WHEN YOU ARE</span></div>
         </div>
-        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch colour theme"><span>☾</span> Dark mode</button>
-      </aside>
+        <div class="canvas-wrap">
+          <canvas id="drawing-canvas" aria-label="Draw a circle here" role="img"></canvas>
+          <div class="canvas-hint" id="canvas-hint"><span class="gesture-icon">⌁</span><strong>Place your finger here</strong><small>Then draw a circle without lifting</small></div>
+        </div>
+        <div class="canvas-footer"><span><i class="dot purple"></i>Your line</span><span><i class="dot mint"></i>Best-fit circle</span><span id="point-count">0 points</span></div>
+      </section>
 
-      <main>
-        <header class="topbar">
-          <button class="mobile-menu" id="mobile-menu" type="button" aria-label="Open menu">☰</button>
-          <div class="greeting"><p class="eyebrow">MONDAY, 24 AUGUST</p><h1>Good morning, <span>Scholar!</span></h1></div>
-          <div class="top-actions"><button class="icon-button" id="theme-toggle-mobile" type="button" aria-label="Switch colour theme">☾</button><button class="avatar" type="button" aria-label="Profile">S</button></div>
-        </header>
+      <section class="result-card" id="result-card" aria-live="polite" aria-label="Your score">
+        <div class="score-orbit"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="score-track" cx="60" cy="60" r="51"/><circle class="score-progress" id="score-progress" cx="60" cy="60" r="51"/></svg><div><strong id="score-value">0%</strong><span>ACCURACY</span></div></div>
+        <div class="result-copy"><p class="eyebrow">YOUR RESULT</p><h2 id="result-message">Ready to draw?</h2><p id="result-detail">Complete a circle and we’ll find the best-fit centre and radius.</p></div>
+        <dl class="metrics"><div><dt>Centre</dt><dd id="center-value">—</dd></div><div><dt>Radius</dt><dd id="radius-value">—</dd></div></dl>
+        <button class="try-again" id="try-again" type="button"><span>↻</span> Try Again</button>
+      </section>
 
-        <section id="dashboard" class="hero section-anchor">
-          <div><p class="eyebrow accent">YOUR CLASS 10 COMMAND CENTER</p><h2>Make today's effort<br />count.</h2><p>Small, focused sessions turn your goals into results. You’re doing brilliantly.</p></div>
-          <div class="streak-card"><span class="streak-icon">🔥</span><div><strong id="streak-number">4</strong><span>day study streak</span></div></div>
-        </section>
-
-        <section class="stats-grid" aria-label="Progress overview">
-          <article class="stat-card lilac"><span class="stat-icon">✓</span><p>CHAPTERS DONE</p><strong id="completed-stat">0<span>/0</span></strong><small id="completed-copy">Start your first chapter</small></article>
-          <article class="stat-card peach"><span class="stat-icon">◷</span><p>STUDY TIME</p><strong id="study-stat">0h <span>0m</span></strong><small id="study-copy">No sessions logged yet</small></article>
-          <article class="stat-card mint"><span class="stat-icon">↗</span><p>AVERAGE MARKS</p><strong id="marks-stat">—</strong><small id="marks-copy">Add a test result</small></article>
-        </section>
-
-        <section class="dashboard-grid">
-          <article class="panel activity-panel"><div class="panel-heading"><div><p class="eyebrow">CONSISTENCY</p><h3>Weekly study time</h3></div><span class="legend"><i></i> Hours</span></div><div class="chart" id="weekly-chart" aria-label="Weekly study time chart"></div><div class="chart-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div></article>
-          <article class="panel targets-panel"><div class="panel-heading"><div><p class="eyebrow">UP NEXT</p><h3>Keep the momentum</h3></div><button class="text-button" data-open-modal="session-modal">Log study +</button></div><div id="up-next" class="up-next"></div></article>
-        </section>
-
-        <section id="subjects" class="section-anchor section-head"><div><p class="eyebrow">SYLLABUS TRACKER</p><h2>Your subjects</h2></div><button class="primary-button" data-open-modal="subject-modal">+ Add subject</button></section>
-        <section id="subjects-list" class="subjects-grid" aria-live="polite"></section>
-
-        <section id="sessions" class="section-anchor section-head"><div><p class="eyebrow">FOCUS HISTORY</p><h2>Recent study sessions</h2></div><button class="primary-button" data-open-modal="session-modal">+ Log session</button></section>
-        <section class="panel table-panel"><div id="sessions-list" class="log-list"></div></section>
-
-        <section id="tests" class="section-anchor section-head"><div><p class="eyebrow">ASSESSMENT TRACKER</p><h2>Test marks</h2></div><button class="primary-button" data-open-modal="test-modal">+ Add mark</button></section>
-        <section class="panel table-panel"><div id="tests-list" class="log-list"></div></section>
-      </main>
-    </div>
-
-    <div class="modal-backdrop" id="modal-backdrop"></div>
-    <dialog class="modal" id="subject-modal"><form id="subject-form" method="dialog"><div class="modal-title"><div><p class="eyebrow">NEW SUBJECT</p><h3>Add to your syllabus</h3></div><button type="button" class="close-modal" aria-label="Close">×</button></div><label>Subject name<input name="name" required maxlength="32" placeholder="e.g. Mathematics" /></label><label>Accent colour<select name="color"><option value="purple">Purple</option><option value="coral">Coral</option><option value="blue">Blue</option><option value="green">Green</option></select></label><button class="primary-button full" value="default">Add subject</button></form></dialog>
-    <dialog class="modal" id="chapter-modal"><form id="chapter-form" method="dialog"><input type="hidden" name="subjectId" /><div class="modal-title"><div><p class="eyebrow">NEW CHAPTER</p><h3>Add a chapter</h3></div><button type="button" class="close-modal" aria-label="Close">×</button></div><label>Chapter title<input name="title" required maxlength="60" placeholder="e.g. Quadratic Equations" /></label><button class="primary-button full" value="default">Add chapter</button></form></dialog>
-    <dialog class="modal" id="session-modal"><form id="session-form" method="dialog"><div class="modal-title"><div><p class="eyebrow">STUDY LOG</p><h3>Record your focus</h3></div><button type="button" class="close-modal" aria-label="Close">×</button></div><label>Subject<select name="subjectId" class="subject-options" required></select></label><div class="two-columns"><label>Minutes<input name="minutes" type="number" min="1" max="720" value="45" required /></label><label>Date<input name="date" type="date" required /></label></div><label>What did you study? <span>(optional)</span><input name="note" maxlength="80" placeholder="e.g. Practised numericals" /></label><button class="primary-button full" value="default">Save session</button></form></dialog>
-    <dialog class="modal" id="test-modal"><form id="test-form" method="dialog"><div class="modal-title"><div><p class="eyebrow">TEST RESULT</p><h3>Record your mark</h3></div><button type="button" class="close-modal" aria-label="Close">×</button></div><label>Subject<select name="subjectId" class="subject-options" required></select></label><label>Test name<input name="title" required maxlength="50" placeholder="e.g. Unit Test 1" /></label><div class="two-columns"><label>Score<input name="score" type="number" min="0" required /></label><label>Out of<input name="total" type="number" min="1" value="100" required /></label></div><button class="primary-button full" value="default">Save mark</button></form></dialog>
+      <p class="tip"><span>✦</span> Tip: Move steadily and let your starting point meet your finish.</p>
+    </main>
     <script src="app.js"></script>
   </body>
 </html>
